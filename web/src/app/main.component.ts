@@ -34,6 +34,7 @@ export class ReconnectDialogComponent {
           <span *ngIf="!revealCards() && user.value.points != null">: x</span>
         </span>
         <span *ngIf="user.value.isSpectator">: Spectator</span>
+        <span *ngIf="user.value.isStale"> (stale)</span>
       </li>
     </ul>
     <div *ngIf="displayCards() && !spectator">
