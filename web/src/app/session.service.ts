@@ -23,6 +23,7 @@ export class UserState {
   name: string | null = null;
   points: number | null = null;
   isSpectator: boolean = false;
+  isStale: boolean = false;
 }
 
 export class SessionAlreadyOpenError extends Error {

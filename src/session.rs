@@ -139,7 +139,7 @@ impl Session {
 
         // Remove user from state.
         self.update_state(|mut state| {
-            state.users.remove(&user_id);
+            state.users.get_mut(&user_id).unwrap().is_stale = true;
             if state.admin.as_ref() == Some(&user_id) {
                 state.admin = None;
             }
@@ -291,6 +291,7 @@ pub struct UserState {
     pub name: Option<String>,
     pub points: Option<String>,
     pub is_spectator: bool,
+    pub is_stale: bool,
     #[serde(skip)]
     pub kicked: bool,
 }
