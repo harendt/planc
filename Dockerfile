@@ -11,7 +11,8 @@ RUN npm install
 # Copy sources.
 ADD --chown=node:node web /work
 # Build frontend.
-RUN npm run build
+ARG configuration=production
+RUN npm run build -- --configuration $configuration
 
 # Backend build image.
 FROM rust AS backend_build
@@ -19,15 +20,23 @@ FROM rust AS backend_build
 RUN rustup target add x86_64-unknown-linux-musl
 # Add unprivileged user.
 RUN groupadd user && useradd -m -g user user
-# Copy sources.
+# Copy package info.
 ADD --chown=user:user Cargo.lock Cargo.toml /work/
+# Build backend dependencies only (see: https://stackoverflow.com/a/57971620).
+# This requires to create a dummy main.rs file that's deleted afterwards.
+USER user:user
+WORKDIR /work
+RUN mkdir -p /work/src && echo "fn main() { println!(\"Hello World!\"); }" > /work/src/main.rs
+RUN cargo build --target x86_64-unknown-linux-musl --release
+RUN rm -rf /work/src
+# Copy sources and touch main.rs to ensure that it's newer than the dummy file
+# created above.
 ADD --chown=user:user src /work/src/
+RUN touch /work/src/main.rs
 # Copy frontend build.
 COPY --from=frontend_build --chown=user:user /work/dist /work/web/dist
 # Build backend
-USER user:user
-WORKDIR /work
-RUN cargo build --target x86_64-unknown-linux-musl --release 
+RUN cargo build --target x86_64-unknown-linux-musl --release
 
 # Runtime image.
 FROM alpine

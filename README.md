@@ -21,7 +21,7 @@ The easiest way to setup the application. Just build the image and run it.
 
 ```bash
 docker build -t planc .
-docker run --rm -it -p 8080 planc
+docker run --rm -it -p 8080:8080 planc
 ```
 
 You can now open the application in your webbrowser (localhost:8080).
