@@ -73,7 +73,7 @@ export class SessionService {
   }
 
   public async joinSession(sessionId: string, name: string): Promise<void> {
-    if (this.session()?.connected) {
+    if (this.connected()) {
       throw new SessionAlreadyOpenError("Already joined to a session");
     }
 
@@ -185,12 +185,17 @@ export class SessionService {
     });
   }
 
+  public connected(): boolean {
+    return Boolean(this.session()?.connected);
+  }
+
   public leaveSession() {
     this.leaveSessionWithError(null);
   }
 
   private leaveSessionWithError(error: Error | null) {
     if (this.webSocket !== null) {
+      this.webSocket.onerror = null;
       this.webSocket.onclose = null;
     }
     this.webSocket?.close();

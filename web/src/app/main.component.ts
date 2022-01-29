@@ -84,7 +84,7 @@ export class MainComponent implements OnDestroy {
         if (this.session === null) {
           this.leaveSession();
         }
-        else if (!this.session?.connected) {
+        else if (!this.session.connected) {
           this.tryReconnect()
         }
       }
@@ -103,27 +103,37 @@ export class MainComponent implements OnDestroy {
   }
 
   tryReconnect() {
-    const name = this.session?.name
-    const sessionId = this.session?.sessionId
-    if (name && sessionId && !this.reconnectDialog) {
-      this.reconnectDialog = this.dialog.open(
-        ReconnectDialogComponent,
-        {
-          disableClose: true,
-        },
-      );
-      this.sessionService.joinSession(sessionId, name)
-        .catch(err => {
-          if (err instanceof SessionAlreadyOpenError) {
-            return;
-          }
-          this.leaveSession();
-        })
-        .finally(() => {
-          this.reconnectDialog?.close();
-          this.reconnectDialog = null;
-        });
+    console.log("Trying to reconnect");
+    if (this.session === null) {
+      console.log("Session is null");
+      return;
     }
+    if (this.session.connected) {
+      // session is still/already connected
+      console.log("Session is already connected");
+      return;
+    }
+    if (this.reconnectDialog !== null) {
+      // already reconnecting
+      console.log("Already reconnecting");
+      return;
+    }
+    this.reconnectDialog = this.dialog.open(
+      ReconnectDialogComponent,
+      {
+        disableClose: true,
+      },
+    );
+    this.sessionService.joinSession(this.session.sessionId, this.session.name)
+      .catch(err => {
+        console.log("Error while trying to reconnect");
+        this.leaveSession();
+      })
+      .finally(() => {
+        this.reconnectDialog?.close();
+        this.reconnectDialog = null;
+        console.log("Reconnection dialog closed");
+      });
   }
 
   leaveSession() {
