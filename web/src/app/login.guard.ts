@@ -16,10 +16,11 @@ export class LoginComponentGuard implements CanActivate {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
-    if (this.sessionService.session() == null) {
-      return true;
-    } else {
+    if (this.sessionService.connected()) {
       return this.router.parseUrl('/');
+    }
+    else {
+      return true;
     }
   }
 }
@@ -37,9 +38,10 @@ export class MainComponentGuard implements CanActivate {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
-    if (this.sessionService.session() == null) {
+    if (!this.sessionService.connected()) {
       return this.router.parseUrl('/login');
-    } else {
+    }
+    else {
       return true;
     }
   }

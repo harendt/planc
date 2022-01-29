@@ -12,8 +12,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatToolbarModule} from '@angular/material/toolbar';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NgModule } from '@angular/core';
+import { ReconnectDialogComponent } from './main.component';
 
 @NgModule({
   declarations: [
@@ -21,6 +23,7 @@ import { NgModule } from '@angular/core';
     LoginComponent,
     LoginDialogComponent,
     MainComponent,
+    ReconnectDialogComponent,
   ],
   imports: [
     AppRoutingModule,
@@ -33,6 +36,7 @@ import { NgModule } from '@angular/core';
     MatDialogModule,
     MatIconModule,
     MatInputModule,
+    MatProgressSpinnerModule,
     MatToolbarModule,
     FormsModule,
   ],

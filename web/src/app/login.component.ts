@@ -99,6 +99,14 @@ export class LoginComponent implements OnInit {
       disableClose: true,
     });
     dialogRef.afterClosed().subscribe(result => {
+      // An empty result shouldn't be possible, but on Microsoft Edge this
+      // happens (for whatever reason) when the server is shut down while a
+      // session was open.
+      if (!result) {
+        this.openLoginDialog();
+        return;
+      }
+
       this.saveLoginDialogResult(result);
       this.sessionService
         .joinSession(result.sessionId, result.name)

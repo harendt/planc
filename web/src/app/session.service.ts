@@ -7,6 +7,7 @@ export class Session {
   sessionId!: string;
   uid!: string;
   state!: SessionState;
+  connected: boolean = false;
 }
 
 export class SessionState {
@@ -25,6 +26,9 @@ export class UserState {
 }
 
 export class SessionAlreadyOpenError extends Error {
+}
+
+export class WebSocketError extends Error {
 }
 
 class Message {
@@ -69,7 +73,7 @@ export class SessionService {
   }
 
   public async joinSession(sessionId: string, name: string): Promise<void> {
-    if (this.session() != null) {
+    if (this.connected()) {
       throw new SessionAlreadyOpenError("Already joined to a session");
     }
 
@@ -100,12 +104,12 @@ export class SessionService {
       error: (errorEvent: Event) => {
         const message = "Connection closed due to an error";
         console.log(message);
-        this.leaveSessionWithError(new Error(message));
+        this.leaveSessionWithError(new WebSocketError(message));
       },
       complete: () => {
         const message = "Connection closed by server";
         console.log(message);
-        this.leaveSessionWithError(new Error(message));
+        this.leaveSessionWithError(new WebSocketError(message));
       },
     });
 
@@ -151,6 +155,7 @@ export class SessionService {
       sessionId: sessionId,
       uid: uid!,
       state: state!,
+      connected: true,
     });
 
     // React to state changes and errors.
@@ -180,19 +185,35 @@ export class SessionService {
     });
   }
 
+  public connected(): boolean {
+    return Boolean(this.session()?.connected);
+  }
+
   public leaveSession() {
     this.leaveSessionWithError(null);
   }
 
   private leaveSessionWithError(error: Error | null) {
     if (this.webSocket !== null) {
+      this.webSocket.onerror = null;
       this.webSocket.onclose = null;
     }
     this.webSocket?.close();
+    let session : Session | null = null;
     if (error !== null) {
-      this.errorSubject.next(error);
+      if (error instanceof WebSocketError) {
+        // Don't report error, but set connected status to false.  The main
+        // component will try to reconnect to the server in this case.
+        session = this.session();
+        if (session !== null) {
+          session.connected = false;
+        }
+      }
+      else {
+        this.errorSubject.next(error);
+      }
     }
-    this.sessionSubject.next(null);
+    this.sessionSubject.next(session);
   }
 
   public setPoints(points: string) {

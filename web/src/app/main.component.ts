@@ -1,7 +1,22 @@
 import { Component, OnDestroy } from '@angular/core';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { SessionService, Session, SessionState, UserState } from './session.service';
+import { SessionService, Session, SessionState, SessionAlreadyOpenError, UserState } from './session.service';
 import { Subscription } from 'rxjs';
+
+@Component({
+  selector: 'app-reconnect-dialog',
+  template: `
+    <div mat-dialog-content>
+      <mat-spinner></mat-spinner>
+      <br />
+      Connection lost
+    </div>
+  `,
+  styles: [],
+})
+export class ReconnectDialogComponent {
+}
 
 @Component({
   selector: 'app-main',
@@ -57,10 +72,12 @@ export class MainComponent implements OnDestroy {
   session: Session | null = null;
   cards: string[] = ["0", "1", "2", "3", "5", "8", "13", "20", "40", "60", "100", "?", "☕"];
   points: string | null = null;
+  reconnectDialog: MatDialogRef<ReconnectDialogComponent> | null = null;
   spectator: boolean = false;
   subscriptions: Subscription[] = [];
 
   constructor(
+    private dialog: MatDialog,
     private sessionService: SessionService,
     private router: Router,
   ) {
@@ -68,7 +85,10 @@ export class MainComponent implements OnDestroy {
       (session: Session | null) => {
         this.session = session;
         if (this.session === null) {
-          this.router.navigate(['/login']);
+          this.leaveSession();
+        }
+        else if (!this.session.connected) {
+          this.tryReconnect()
         }
         else {
           this.points = this.session.state.users[this.session.uid].points?.toString() ?? null;
@@ -86,6 +106,41 @@ export class MainComponent implements OnDestroy {
     this.subscriptions.forEach((subscription) => {
       subscription.unsubscribe();
     });
+  }
+
+  tryReconnect() {
+    console.log("Trying to reconnect");
+    if (this.session === null) {
+      return;
+    }
+    if (this.session.connected) {
+      // session is still/already connected
+      return;
+    }
+    if (this.reconnectDialog !== null) {
+      // already reconnecting
+      return;
+    }
+    this.reconnectDialog = this.dialog.open(
+      ReconnectDialogComponent,
+      {
+        disableClose: true,
+      },
+    );
+    this.sessionService.joinSession(this.session.sessionId, this.session.name)
+      .then(() => console.log("Reconnected successfully"))
+      .catch(err => {
+        console.log("Error while trying to reconnect");
+        this.leaveSession();
+      })
+      .finally(() => {
+        this.reconnectDialog?.close();
+        this.reconnectDialog = null;
+      });
+  }
+
+  leaveSession() {
+    this.router.navigate(['/login']);
   }
 
   setPoints(value: string) {
