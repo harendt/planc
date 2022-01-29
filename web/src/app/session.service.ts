@@ -24,6 +24,9 @@ export class UserState {
   isSpectator: boolean = false;
 }
 
+export class SessionAlreadyOpenError extends Error {
+}
+
 class Message {
   tag: string = '';
   content: any = null;
@@ -67,7 +70,7 @@ export class SessionService {
 
   public async joinSession(sessionId: string, name: string): Promise<void> {
     if (this.session() != null) {
-      throw new Error("Already joined to a session");
+      throw new SessionAlreadyOpenError("Already joined to a session");
     }
 
     // Open websocket. Not using rxjs WebSocketSubject here since it displays
@@ -79,10 +82,10 @@ export class SessionService {
         resolve();
       };
       this.webSocket!.onerror = (event) => {
-        reject();
+        reject(new Error("connection error"));
       };
       this.webSocket!.onclose = (event) => {
-        reject();
+        reject(new Error("connection closed"));
       };
     });
 
@@ -91,6 +94,20 @@ export class SessionService {
     this.webSocket.onmessage = (event) => messageSubject.next(JSON.parse(event.data));
     this.webSocket.onerror = (err) => messageSubject.error(err);
     this.webSocket.onclose = (event) => messageSubject.complete();
+
+    // React to connection errors and closed connections.
+    messageSubject.subscribe({
+      error: (errorEvent: Event) => {
+        const message = "Connection closed due to an error";
+        console.log(message);
+        this.leaveSessionWithError(new Error(message));
+      },
+      complete: () => {
+        const message = "Connection closed by server";
+        console.log(message);
+        this.leaveSessionWithError(new Error(message));
+      },
+    });
 
     // Request the user id.
     this.webSocket.send(JSON.stringify({tag: "Whoami", content: null }));
@@ -137,40 +154,30 @@ export class SessionService {
     });
 
     // React to state changes and errors.
-    messageSubject.subscribe(
-      (message) => {
-        console.log("Got message: " + JSON.stringify(message));
-        switch (message.tag) {
-          case "Error": {
-            this.leaveSessionWithError(new Error(message.content));
-            break;
-          }
-          case "State": {
-            let session = this.session();
-            if (session !== null) {
-              session.state = message.content as SessionState;
-              this.sessionSubject.next(session);
-            }
-            break;
-          }
-          case "KeepAlive": {
-            break;
-          }
-          default: {
-            console.log("Unexpected message tag: " + JSON.stringify(message));
-            break;
-          }
+    messageSubject.subscribe((message) => {
+      console.log("Got message: " + JSON.stringify(message));
+      switch (message.tag) {
+        case "Error": {
+          this.leaveSessionWithError(new Error(message.content));
+          break;
         }
-      },
-      (err: Error) => {
-        console.log("Got update error: " + JSON.stringify(err));
-        this.leaveSessionWithError(err);
-      },
-      () => {
-        console.log("Updates completed");
-        this.leaveSessionWithError(new Error("Connection closed"));
+        case "State": {
+          let session = this.session();
+          if (session !== null) {
+            session.state = message.content as SessionState;
+            this.sessionSubject.next(session);
+          }
+          break;
+        }
+        case "KeepAlive": {
+          break;
+        }
+        default: {
+          console.log("Unexpected message tag: " + JSON.stringify(message));
+          break;
+        }
       }
-    );
+    });
   }
 
   public leaveSession() {

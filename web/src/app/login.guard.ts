@@ -6,7 +6,7 @@ import { SessionService } from './session.service';
 @Injectable({
   providedIn: 'root'
 })
-export class LoginGuard implements CanActivate {
+export class LoginComponentGuard implements CanActivate {
   constructor(
     private router: Router,
     private sessionService: SessionService,
@@ -14,7 +14,29 @@ export class LoginGuard implements CanActivate {
 
   canActivate(
     route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
+    state: RouterStateSnapshot
+  ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
+    if (this.sessionService.session() == null) {
+      return true;
+    } else {
+      return this.router.parseUrl('/');
+    }
+  }
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class MainComponentGuard implements CanActivate {
+  constructor(
+    private router: Router,
+    private sessionService: SessionService,
+  ) {}
+
+  canActivate(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
     if (this.sessionService.session() == null) {
       return this.router.parseUrl('/login');
     } else {
