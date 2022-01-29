@@ -105,17 +105,14 @@ export class MainComponent implements OnDestroy {
   tryReconnect() {
     console.log("Trying to reconnect");
     if (this.session === null) {
-      console.log("Session is null");
       return;
     }
     if (this.session.connected) {
       // session is still/already connected
-      console.log("Session is already connected");
       return;
     }
     if (this.reconnectDialog !== null) {
       // already reconnecting
-      console.log("Already reconnecting");
       return;
     }
     this.reconnectDialog = this.dialog.open(
@@ -125,6 +122,7 @@ export class MainComponent implements OnDestroy {
       },
     );
     this.sessionService.joinSession(this.session.sessionId, this.session.name)
+      .then(() => console.log("Reconnected successfully"))
       .catch(err => {
         console.log("Error while trying to reconnect");
         this.leaveSession();
@@ -132,7 +130,6 @@ export class MainComponent implements OnDestroy {
       .finally(() => {
         this.reconnectDialog?.close();
         this.reconnectDialog = null;
-        console.log("Reconnection dialog closed");
       });
   }
 
