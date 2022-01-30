@@ -5,6 +5,7 @@ use std::sync::atomic::AtomicI64;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::Error as WebSocketError;
 
 pub struct Session {
     ctx: Arc<ServiceContext>,
@@ -133,13 +134,23 @@ impl Session {
         });
 
         // Listen to messages from the connection.
-        if let Err(err) = self.handle_connection(conn, &user_id).await {
+        let connection_result = self.handle_connection(conn, &user_id).await;
+        if let Err(ref err) = connection_result {
             log::warn!("Session::join/handle_connection: {}", err);
         }
+        let websocket_protocol_error_occurred = match connection_result {
+            Err(ref err) => err.chain().any(|cause| matches!(cause.downcast_ref::<WebSocketError>(), Some(WebSocketError::Protocol(_)))),
+            _ => false
+        };
 
         // Remove user from state.
         self.update_state(|mut state| {
-            state.users.get_mut(&user_id).unwrap().is_stale = true;
+            if websocket_protocol_error_occurred {
+                state.users.get_mut(&user_id).unwrap().is_stale = true;
+            }
+            else {
+                state.users.remove(&user_id);
+            }
             if state.admin.as_ref() == Some(&user_id) {
                 state.admin = None;
             }
@@ -147,11 +158,21 @@ impl Session {
         })
         .await?;
 
-        log::info!(
-            "Session::join: User {} leaving session \"{}\"",
-            user_id,
-            self.session_id
-        );
+        if websocket_protocol_error_occurred {
+            log::info!(
+                "Session::join: User {} in session \"{}\" is stale",
+                user_id,
+                self.session_id
+            );
+        }
+        else {
+            log::info!(
+                "Session::join: User {} leaving session \"{}\"",
+                user_id,
+                self.session_id
+            );
+        }
+
         Ok(())
     }
 
@@ -166,6 +187,20 @@ impl Session {
             let result = match msg? {
                 ClientMessage::NameChange(name) if name.len() <= 32 => {
                     self.update_state(|mut state| {
+                        state.users.retain(|other_user_id, other_user| {
+                            if other_user.name.as_ref() == Some(&name) && other_user.is_stale {
+                                log::info!(
+                                    "Session::join: User {} takes over stale user {} in session \"{}\"",
+                                    user_id,
+                                    other_user_id,
+                                    self.session_id
+                                );
+                                false
+                            }
+                            else {
+                                true
+                            }
+                        });
                         if state.users.values().all(|user| user.name.as_ref() != Some(&name)) {
                             state.users.get_mut(user_id).unwrap().name = Some(name.clone());
                             Ok(state)
