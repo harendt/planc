@@ -10,10 +10,10 @@ import { Subscription } from 'rxjs';
     <div mat-dialog-content>
       <mat-spinner></mat-spinner>
       <br />
-      <p>Connection lost</p>
+      Connection lost
     </div>
   `,
-  styles: []
+  styles: [],
 })
 export class ReconnectDialogComponent {
 }
