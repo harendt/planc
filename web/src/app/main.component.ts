@@ -29,7 +29,7 @@ export class ReconnectDialogComponent {
           <mat-icon>person_remove</mat-icon>
         </button>
         {{user.value.name}}
-        <span *ngIf="!user.value.isSpectator && !user.value.isStale">
+        <span *ngIf="!user.value.isSpectator">
           <span *ngIf="revealCards()">: {{user.value.points}}</span>
           <span *ngIf="!revealCards() && user.value.points != null">: x</span>
         </span>

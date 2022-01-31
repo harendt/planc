@@ -187,14 +187,10 @@ impl Session {
             let result = match msg? {
                 ClientMessage::NameChange(name) if name.len() <= 32 => {
                     self.update_state(|mut state| {
+                        let mut stale_duplicates: HashMap<String, UserState> = HashMap::new();
                         state.users.retain(|other_user_id, other_user| {
                             if other_user.name.as_ref() == Some(&name) && other_user.is_stale {
-                                log::info!(
-                                    "Session::join: User {} takes over stale user {} in session \"{}\"",
-                                    user_id,
-                                    other_user_id,
-                                    self.session_id
-                                );
+                                stale_duplicates.insert(other_user_id.clone(), other_user.clone());
                                 false
                             }
                             else {
@@ -202,9 +198,25 @@ impl Session {
                             }
                         });
                         if state.users.values().all(|user| user.name.as_ref() != Some(&name)) {
-                            state.users.get_mut(user_id).unwrap().name = Some(name.clone());
+                            assert!(stale_duplicates.len() <= 1);
+                            match stale_duplicates.iter().next() {
+                                Some((other_user_id, other_user)) => {
+                                    log::info!(
+                                        "Session::join: User {} takes over stale user {} in session \"{}\"",
+                                        user_id,
+                                        other_user_id,
+                                        self.session_id
+                                    );
+                                    state.users.insert(user_id.to_string(), other_user.clone());
+                                    state.users.get_mut(user_id).unwrap().is_stale = false;
+                                }
+                                None => {
+                                    state.users.get_mut(user_id).unwrap().name = Some(name.clone());
+                                }
+                            };
                             Ok(state)
                         } else {
+                            assert!(stale_duplicates.len() == 0);
                             Err(PlancError::DuplicateName.into())
                         }
                     })
