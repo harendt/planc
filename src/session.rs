@@ -139,16 +139,20 @@ impl Session {
             log::warn!("Session::join/handle_connection: {}", err);
         }
         let websocket_protocol_error_occurred = match connection_result {
-            Err(ref err) => err.chain().any(|cause| matches!(cause.downcast_ref::<WebSocketError>(), Some(WebSocketError::Protocol(_)))),
-            _ => false
+            Err(ref err) => err.chain().any(|cause| {
+                matches!(
+                    cause.downcast_ref::<WebSocketError>(),
+                    Some(WebSocketError::Protocol(_))
+                )
+            }),
+            _ => false,
         };
 
         // Remove user from state.
         self.update_state(|mut state| {
             if websocket_protocol_error_occurred {
                 state.users.get_mut(&user_id).unwrap().is_stale = true;
-            }
-            else {
+            } else {
                 state.users.remove(&user_id);
             }
             if state.admin.as_ref() == Some(&user_id) {
@@ -164,8 +168,7 @@ impl Session {
                 user_id,
                 self.session_id
             );
-        }
-        else {
+        } else {
             log::info!(
                 "Session::join: User {} leaving session \"{}\"",
                 user_id,
