@@ -196,6 +196,10 @@ export class SessionService {
     this.webSocket?.send(JSON.stringify({ tag: "ResetPoints", content: null }));
   }
 
+  resetAllPoints() {
+    this.webSocket?.send(JSON.stringify({ tag: "ResetAllPoints", content: null }));
+  }
+
   claimSession() {
     this.webSocket?.send(JSON.stringify({ tag: "ClaimSession", content: null }));
   }

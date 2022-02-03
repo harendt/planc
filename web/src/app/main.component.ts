@@ -37,7 +37,7 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
     </div>
     <div *ngIf="displayControl()">
       <h2>Control</h2>
-      <p><button mat-raised-button color="primary" (click)="resetPoints()">Reset</button></p>
+      <p><button mat-raised-button color="primary" (click)="resetAllPoints()">Reset</button></p>
     </div>
     <div *ngIf="displayClaimSession()">
       <h2>Control</h2>
@@ -77,12 +77,19 @@ export class MainComponent {
   }
 
   setPoints(value: string) {
-    this.points = value;
-    this.sessionService.setPoints(value);
+    if (value === this.points) {
+      this.points = null;
+      this.sessionService.resetPoints();
+    }
+    else
+    {
+      this.points = value;
+      this.sessionService.setPoints(value);
+    }
   }
 
-  resetPoints() {
-    this.sessionService.resetPoints();
+  resetAllPoints() {
+    this.sessionService.resetAllPoints();
   }
 
   claimSession() {

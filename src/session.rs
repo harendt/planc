@@ -193,6 +193,18 @@ impl Session {
                 }
                 ClientMessage::ResetPoints => {
                     self.update_state(|mut state| {
+                        let user_state = state.users.get_mut(user_id).unwrap();
+                        if !user_state.is_spectator {
+                            user_state.points = None;
+                            Ok(state)
+                        } else {
+                            Err(PlancError::InvalidMessage.into())
+                        }
+                    })
+                    .await
+                }
+                ClientMessage::ResetAllPoints => {
+                    self.update_state(|mut state| {
                         if state.admin.as_deref() == Some(user_id) {
                             for user in state.users.values_mut() {
                                 user.points = None;
@@ -305,6 +317,7 @@ pub enum ClientMessage {
     NameChange(String),
     SetPoints(String),
     ResetPoints,
+    ResetAllPoints,
     Whoami,
     ClaimSession,
     KickUser(String),
