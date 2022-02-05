@@ -20,7 +20,7 @@ export interface UserStateMap {
 
 export class UserState {
   name: string | null = null;
-  points: number | null = null;
+  points: string | null = null;
   isSpectator: boolean = false;
 }
 

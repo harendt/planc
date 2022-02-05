@@ -68,7 +68,7 @@ export class MainComponent {
         this.router.navigate(['/login']);
       }
       else {
-        this.points = this.session.state.users[this.session.uid].points?.toString() ?? null;
+        this.points = this.session.state.users[this.session.uid].points;
       }
     });
     sessionService.error$.subscribe((err: Error) => {
