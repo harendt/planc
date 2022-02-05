@@ -14,7 +14,12 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
         </button>
         {{user.value.name}}
         <span *ngIf="!user.value.isSpectator">
-          <span *ngIf="revealCards()">: {{user.value.points}}</span>
+          <span *ngIf="revealCards()">:
+            <span [ngSwitch]="cards.get(user.value.points!)">
+              <span *ngSwitchCase="'plain'">{{user.value.points}}</span>
+              <mat-icon *ngSwitchCase="'icon'" class="revealed-card">{{user.value.points}}</mat-icon>
+            </span>
+          </span>
           <span *ngIf="!revealCards() && user.value.points != null">: x</span>
         </span>
         <span *ngIf="user.value.isSpectator">: Spectator</span>
@@ -23,7 +28,12 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
     <div *ngIf="displayCards() && !spectator">
       <h2>Cards</h2>
       <p class="cards">
-        <button mat-raised-button *ngFor="let card of cards" [color]="card === points ? 'primary' : 'basic'" (click)="setPoints(card)">{{card}}</button>
+        <button mat-raised-button *ngFor="let card of cards.keys()" [color]="card === points ? 'primary' : 'basic'" (click)="setPoints(card)">
+          <span [ngSwitch]="cards.get(card)">
+            <span *ngSwitchCase="'plain'">{{card}}</span>
+            <mat-icon *ngSwitchCase="'icon'" class="card">{{card}}</mat-icon>
+          </span>
+        </button>
       </p>
     </div>
     <p><mat-checkbox [ngModel]="spectator" (ngModelChange)="setSpectator($event)">Spectator</mat-checkbox></p>
@@ -50,11 +60,27 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
     // horizontal padding.
     ':host { padding: 8px 16px; display: block; }',
     '.cards button { margin-right: 1em; margin-bottom: 1em; min-width: 5em; min-height: 3.5em; }',
+    'mat-icon.revealed-card { font-size: 18px; vertical-align: middle; }',
+    'mat-icon.card { vertical-align: middle; }',
   ],
 })
 export class MainComponent {
   session: Session | null = null;
-  cards: string[] = ["0", "1", "2", "3", "5", "8", "13", "20", "40", "60", "100", "?", "☕"];
+  cards = new Map([
+    ["0", "plain"],
+    ["1", "plain"],
+    ["2", "plain"],
+    ["3", "plain"],
+    ["5", "plain"],
+    ["8", "plain"],
+    ["13", "plain"],
+    ["20", "plain"],
+    ["40", "plain"],
+    ["60", "plain"],
+    ["100", "plain"],
+    ["?", "plain"],
+    ["coffee", "icon"],
+  ]);
   points: string | null = null;
   spectator: boolean = false;
 
