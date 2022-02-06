@@ -2,6 +2,11 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 import { SessionService, Session, SessionState, UserState } from './session.service';
 
+enum CardType {
+  Plain,
+  Icon,
+}
+
 @Component({
   selector: 'app-main',
   template: `
@@ -16,8 +21,8 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
         <span *ngIf="!user.value.isSpectator">
           <span *ngIf="revealCards()">:
             <span [ngSwitch]="cards.get(user.value.points!)">
-              <span *ngSwitchCase="'plain'">{{user.value.points}}</span>
-              <mat-icon *ngSwitchCase="'icon'" class="revealed-card">{{user.value.points}}</mat-icon>
+              <span *ngSwitchCase="CardType.Plain">{{user.value.points}}</span>
+              <mat-icon *ngSwitchCase="CardType.Icon" class="revealed-card">{{user.value.points}}</mat-icon>
             </span>
           </span>
           <span *ngIf="!revealCards() && user.value.points != null">: x</span>
@@ -30,8 +35,8 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
       <p class="cards">
         <button mat-raised-button *ngFor="let card of cards.keys()" [color]="card === points ? 'primary' : 'basic'" (click)="setPoints(card)">
           <span [ngSwitch]="cards.get(card)">
-            <span *ngSwitchCase="'plain'">{{card}}</span>
-            <mat-icon *ngSwitchCase="'icon'" class="card">{{card}}</mat-icon>
+            <span *ngSwitchCase="CardType.Plain">{{card}}</span>
+            <mat-icon *ngSwitchCase="CardType.Icon" class="card">{{card}}</mat-icon>
           </span>
         </button>
       </p>
@@ -66,20 +71,21 @@ import { SessionService, Session, SessionState, UserState } from './session.serv
 })
 export class MainComponent {
   session: Session | null = null;
+  CardType = CardType; // https://stackoverflow.com/a/35835985
   cards = new Map([
-    ["0", "plain"],
-    ["1", "plain"],
-    ["2", "plain"],
-    ["3", "plain"],
-    ["5", "plain"],
-    ["8", "plain"],
-    ["13", "plain"],
-    ["20", "plain"],
-    ["40", "plain"],
-    ["60", "plain"],
-    ["100", "plain"],
-    ["?", "plain"],
-    ["coffee", "icon"],
+    ["0", CardType.Plain],
+    ["1", CardType.Plain],
+    ["2", CardType.Plain],
+    ["3", CardType.Plain],
+    ["5", CardType.Plain],
+    ["8", CardType.Plain],
+    ["13", CardType.Plain],
+    ["20", CardType.Plain],
+    ["40", CardType.Plain],
+    ["60", CardType.Plain],
+    ["100", CardType.Plain],
+    ["?", CardType.Plain],
+    ["coffee", CardType.Icon],
   ]);
   points: string | null = null;
   spectator: boolean = false;
