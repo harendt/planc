@@ -88,9 +88,6 @@ export class MainComponent implements OnDestroy {
         if (this.session === null) {
           this.leaveSession();
         }
-        else if (!this.session.connected) {
-          this.tryReconnect()
-        }
         else {
           this.points = this.session.state.users[this.session.uid].points?.toString() ?? null;
         }
@@ -101,6 +98,19 @@ export class MainComponent implements OnDestroy {
         alert(err);
       }
     ));
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.visibilityState === "hidden") {
+          this.sessionService.holdConnection();
+        }
+        else if (document.visibilityState === "visible") {
+          if (this.session !== null && !this.session.connected) {
+            this.tryReconnect()
+          }
+        }
+      },
+      false);
   }
 
   ngOnDestroy() {

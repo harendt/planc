@@ -190,31 +190,37 @@ export class SessionService {
     return Boolean(this.session()?.connected);
   }
 
+  public holdConnection() {
+    this.webSocket?.send(JSON.stringify({ tag: "HoldConnection", content: null }));
+    this.closeConnection();
+    let session = this.session();
+    if (session !== null) {
+      session.connected = false;
+      this.sessionSubject.next(session);
+    }
+    else {
+      this.leaveSessionWithError(new Error("no session"));
+    }
+  }
+
   public leaveSession() {
     this.leaveSessionWithError(null);
   }
 
-  private leaveSessionWithError(error: Error | null) {
+  private closeConnection() {
     if (this.webSocket !== null) {
       this.webSocket.onerror = null;
       this.webSocket.onclose = null;
     }
     this.webSocket?.close();
-    let session : Session | null = null;
+  }
+
+  private leaveSessionWithError(error: Error | null) {
+    this.closeConnection();
     if (error !== null) {
-      if (error instanceof WebSocketError) {
-        // Don't report error, but set connected status to false.  The main
-        // component will try to reconnect to the server in this case.
-        session = this.session();
-        if (session !== null) {
-          session.connected = false;
-        }
-      }
-      else {
-        this.errorSubject.next(error);
-      }
+      this.errorSubject.next(error);
     }
-    this.sessionSubject.next(session);
+    this.sessionSubject.next(null);
   }
 
   public setPoints(points: string) {

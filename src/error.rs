@@ -9,6 +9,7 @@ pub enum PlancError {
     MaxUsersExceeded,
     UnknownUserId,
     UserKicked,
+    ConnectionNotClosedAfterHold,
 }
 
 impl fmt::Display for PlancError {

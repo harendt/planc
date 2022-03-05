@@ -5,7 +5,6 @@ use std::sync::atomic::AtomicI64;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Error as WebSocketError;
 
 pub struct Session {
     ctx: Arc<ServiceContext>,
@@ -142,23 +141,28 @@ impl Session {
         if let Err(ref err) = connection_result {
             log::warn!("Session::join/handle_connection: {}", err);
         }
-        let websocket_protocol_error_occurred = match connection_result {
-            Err(ref err) => err.chain().any(|cause| {
-                matches!(
-                    cause.downcast_ref::<WebSocketError>(),
-                    Some(WebSocketError::Protocol(_))
-                )
-            }),
-            _ => false,
-        };
 
-        // Remove user from state.
         self.update_state(|mut state| {
-            if websocket_protocol_error_occurred {
-                state.users.get_mut(&user_id).unwrap().is_stale = true;
-            } else {
-                state.users.remove(&user_id);
-            }
+            match connection_result {
+                Ok(ConnectionResult::OnHold) => {
+                    // Mark user as stale because user asked to hold the connection
+                    log::info!(
+                        "Session::join: User {} in session \"{}\" is on hold",
+                        user_id,
+                        self.session_id
+                    );
+                    state.users.get_mut(&user_id).unwrap().is_stale = true;
+                }
+                _ => {
+                    // Remove user from state.
+                    log::info!(
+                        "Session::join: User {} leaving session \"{}\"",
+                        user_id,
+                        self.session_id
+                    );
+                    state.users.remove(&user_id);
+                }
+            };
             if state.admin.as_ref() == Some(&user_id) {
                 state.admin = None;
             }
@@ -166,24 +170,10 @@ impl Session {
         })
         .await?;
 
-        if websocket_protocol_error_occurred {
-            log::info!(
-                "Session::join: User {} in session \"{}\" is stale",
-                user_id,
-                self.session_id
-            );
-        } else {
-            log::info!(
-                "Session::join: User {} leaving session \"{}\"",
-                user_id,
-                self.session_id
-            );
-        }
-
         Ok(())
     }
 
-    async fn handle_connection(&self, mut conn: Connection, user_id: &str) -> Result<()> {
+    async fn handle_connection(&self, mut conn: Connection, user_id: &str) -> Result<ConnectionResult> {
         while let Some(msg) = conn.recv().await {
             // Terminate the connection for kicked users.
             let user_state = self.user_state(user_id).await?;
@@ -294,6 +284,13 @@ impl Session {
                     })
                     .await
                 }
+                ClientMessage::HoldConnection => {
+                    // Wait for connection to be closed by remote
+                    if conn.recv::<ClientMessage>().await.is_none() {
+                        return Ok(ConnectionResult::OnHold);
+                    }
+                    Err(PlancError::ConnectionNotClosedAfterHold.into())
+                }
                 _ => Err(PlancError::InvalidMessage.into()),
             };
             if let Err(err) = result {
@@ -301,7 +298,7 @@ impl Session {
                 return Err(err);
             }
         }
-        Ok(())
+        return Ok(ConnectionResult::Closed);
     }
 
     async fn update_state<F>(&self, mut func: F) -> Result<()>
@@ -333,6 +330,11 @@ impl Drop for Session {
     }
 }
 
+pub enum ConnectionResult {
+    Closed,
+    OnHold,
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SessionState {
     pub users: HashMap<String, UserState>,
@@ -360,6 +362,7 @@ pub enum ClientMessage {
     ClaimSession,
     KickUser(String),
     SetSpectator(bool),
+    HoldConnection,
 }
 
 #[derive(Debug, Serialize)]
