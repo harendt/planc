@@ -145,13 +145,13 @@ impl Session {
         self.update_state(|mut state| {
             match connection_result {
                 Ok(ConnectionResult::OnHold) => {
-                    // Mark user as stale because user asked to hold the connection
+                    // Mark user as inactive because user asked to hold the connection
                     log::info!(
                         "Session::join: User {} in session \"{}\" is on hold",
                         user_id,
                         self.session_id
                     );
-                    state.users.get_mut(&user_id).unwrap().is_stale = true;
+                    state.users.get_mut(&user_id).unwrap().is_inactive = true;
                 }
                 _ => {
                     // Remove user from state.
@@ -184,10 +184,10 @@ impl Session {
             let result = match msg? {
                 ClientMessage::NameChange(name) if name.len() <= 32 => {
                     self.update_state(|mut state| {
-                        let mut stale_duplicates: HashMap<String, UserState> = HashMap::new();
+                        let mut inactive_duplicates: HashMap<String, UserState> = HashMap::new();
                         state.users.retain(|other_user_id, other_user| {
-                            if other_user.name.as_ref() == Some(&name) && other_user.is_stale {
-                                stale_duplicates.insert(other_user_id.clone(), other_user.clone());
+                            if other_user.name.as_ref() == Some(&name) && other_user.is_inactive {
+                                inactive_duplicates.insert(other_user_id.clone(), other_user.clone());
                                 false
                             }
                             else {
@@ -195,17 +195,17 @@ impl Session {
                             }
                         });
                         if state.users.values().all(|user| user.name.as_ref() != Some(&name)) {
-                            assert!(stale_duplicates.len() <= 1);
-                            match stale_duplicates.iter().next() {
+                            assert!(inactive_duplicates.len() <= 1);
+                            match inactive_duplicates.iter().next() {
                                 Some((other_user_id, other_user)) => {
                                     log::info!(
-                                        "Session::join: User {} takes over stale user {} in session \"{}\"",
+                                        "Session::join: User {} takes over inactive user {} in session \"{}\"",
                                         user_id,
                                         other_user_id,
                                         self.session_id
                                     );
                                     state.users.insert(user_id.to_string(), other_user.clone());
-                                    state.users.get_mut(user_id).unwrap().is_stale = false;
+                                    state.users.get_mut(user_id).unwrap().is_inactive = false;
                                 }
                                 None => {
                                     state.users.get_mut(user_id).unwrap().name = Some(name.clone());
@@ -213,7 +213,7 @@ impl Session {
                             };
                             Ok(state)
                         } else {
-                            assert!(stale_duplicates.len() == 0);
+                            assert!(inactive_duplicates.len() == 0);
                             Err(PlancError::DuplicateName.into())
                         }
                     })
@@ -347,7 +347,7 @@ pub struct UserState {
     pub name: Option<String>,
     pub points: Option<String>,
     pub is_spectator: bool,
-    pub is_stale: bool,
+    pub is_inactive: bool,
     #[serde(skip)]
     pub kicked: bool,
 }
